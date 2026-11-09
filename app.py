@@ -20,8 +20,8 @@ class App:
         self.closing = False
         self.focus = FortniteFocus()
         root.title("Jogar novamente")
-        root.geometry("540x580")
-        root.minsize(540, 580)
+        root.geometry("540x640")
+        root.minsize(540, 640)
         root.configure(bg="#10151e")
         root.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -39,11 +39,13 @@ class App:
         frame = ttk.Frame(root, padding=28)
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text="Jogar novamente", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frame, text="Repetição do botão Y · controle Xbox virtual", style="Muted.TLabel").pack(anchor="w", pady=(4, 24))
+        ttk.Label(frame, text="Botão Y e analógicos · controle Xbox virtual", style="Muted.TLabel").pack(anchor="w", pady=(4, 24))
         self.status = tk.StringVar(value="Desligado")
         ttk.Label(frame, textvariable=self.status, style="State.TLabel", wraplength=475).pack(anchor="w")
         self.count = tk.StringVar(value="Comandos nesta sessão: 0")
         ttk.Label(frame, textvariable=self.count, style="Muted.TLabel").pack(anchor="w", pady=(8, 22))
+        self.movements = tk.StringVar(value="Movimentos dos analógicos: 0")
+        ttk.Label(frame, textvariable=self.movements, style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
 
         ttk.Label(frame, text="Intervalo aleatório entre comandos (segundos)").pack(anchor="w")
         fields = ttk.Frame(frame)
@@ -59,13 +61,18 @@ class App:
         self.simulate = tk.BooleanVar(value=simulate)
         self.sim_check = ttk.Checkbutton(frame, text="Simular sem enviar comandos (dispensa o jogo)", variable=self.simulate)
         self.sim_check.pack(anchor="w", pady=(0, 16))
+        self.move_sticks = tk.BooleanVar(value=True)
+        self.sticks_check = ttk.Checkbutton(
+            frame, text="Mover os dois analógicos ocasionalmente (20–45 s)",
+            variable=self.move_sticks)
+        self.sticks_check.pack(anchor="w", pady=(0, 16))
 
         self.button = ttk.Button(frame, text="Ligar", command=self.toggle)
         self.button.pack(fill="x")
         ttk.Label(frame, text="F8  ligar / desligar       F9  parar", style="Muted.TLabel").pack(anchor="w", pady=(12, 18))
         ttk.Label(frame, text="O envio pausa quando você sai do Fortnite.\nNão há captura nem armazenamento de imagens.",
                   style="Muted.TLabel", wraplength=475).pack(anchor="w")
-        ttk.Label(frame, text="Enquanto ligado, Y também é enviado durante a partida.\nIntervalos aleatórios não eliminam o risco de banimento.",
+        ttk.Label(frame, text="Y e analógicos também atuam durante a partida.\nIntervalos aleatórios não eliminam o risco de banimento.",
                   style="Muted.TLabel", wraplength=475).pack(anchor="w", pady=(12, 0))
         self.hotkey_note = tk.StringVar()
         ttk.Label(frame, textvariable=self.hotkey_note, style="Muted.TLabel", wraplength=475).pack(anchor="w", pady=(8, 0))
@@ -85,14 +92,16 @@ class App:
             return
         try:
             settings = Settings(float(self.minimum.get().replace(",", ".")),
-                                float(self.maximum.get().replace(",", ".")), self.simulate.get())
+                                float(self.maximum.get().replace(",", ".")), self.simulate.get(),
+                                self.move_sticks.get())
         except ValueError as exc:
             messagebox.showerror("Confira os intervalos", str(exc), parent=self.root)
             return
         self.stop_event = threading.Event()
         self.count.set("Comandos nesta sessão: 0")
+        self.movements.set("Movimentos dos analógicos: 0")
         self.status.set("Conectando o controle…" if not settings.simulate else "Iniciando simulação…")
-        for widget in (self.min_entry, self.max_entry, self.sim_check):
+        for widget in (self.min_entry, self.max_entry, self.sim_check, self.sticks_check):
             widget.configure(state="disabled")
         self.button.configure(text="Desligar")
         self.worker = threading.Thread(target=run, args=(
@@ -116,6 +125,9 @@ class App:
             elif kind == "count":
                 label = "Simulações" if self.simulate.get() else "Comandos"
                 self.count.set(f"{label} nesta sessão: {value}")
+            elif kind == "movements":
+                label = "Movimentos simulados" if self.simulate.get() else "Movimentos dos analógicos"
+                self.movements.set(f"{label}: {value}")
             elif kind == "error":
                 if not self.closing:
                     messagebox.showerror("Falha no controle", value, parent=self.root)
@@ -132,7 +144,7 @@ class App:
             self.worker = None
             self.status.set("Desligado")
             self.button.configure(text="Ligar", state="normal")
-            for widget in (self.min_entry, self.max_entry, self.sim_check):
+            for widget in (self.min_entry, self.max_entry, self.sim_check, self.sticks_check):
                 widget.configure(state="normal")
         if self.closing and self.worker is None and not self.hotkeys.is_alive():
             self.root.destroy()
@@ -149,11 +161,14 @@ class App:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--simular", action="store_true", help="abre com a simulação selecionada")
+    parser.add_argument("--ligar", action="store_true", help="inicia o envio ao abrir a interface")
     args = parser.parse_args()
     if os.name != "nt":
         parser.error("Este aplicativo usa o controle virtual do Windows 10/11.")
     root = tk.Tk()
-    App(root, simulate=args.simular)
+    app = App(root, simulate=args.simular)
+    if args.ligar:
+        root.after(200, app.toggle)
     root.mainloop()
 
 

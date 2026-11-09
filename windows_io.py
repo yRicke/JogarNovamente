@@ -1,8 +1,11 @@
 """Integração Windows: processo em foco, atalhos globais e Xbox virtual."""
 
 import ctypes
+import math
 import ntpath
+import random
 import threading
+import time
 from ctypes import wintypes
 
 
@@ -82,6 +85,32 @@ class XboxPad:
             self._pad.update()
         finally:
             self._pad = None  # Desconecta o dispositivo virtual.
+
+    def move_sticks(self, stop, is_focused):
+        """Pulso curto dos dois analógicos; sempre retorna ao estado neutro."""
+        if stop.is_set() or not is_focused():
+            return False
+        left_angle = random.uniform(0, math.tau)
+        right_angle = random.uniform(0, math.tau)
+        duration = random.uniform(0.25, 0.6)
+        try:
+            self._pad.left_joystick_float(
+                x_value_float=0.75 * math.cos(left_angle),
+                y_value_float=0.75 * math.sin(left_angle))
+            self._pad.right_joystick_float(
+                x_value_float=0.75 * math.cos(right_angle),
+                y_value_float=0.75 * math.sin(right_angle))
+            self._pad.update()
+            deadline = time.monotonic() + duration
+            while not stop.is_set() and is_focused():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                stop.wait(min(0.03, remaining))
+        finally:
+            self._pad.reset()
+            self._pad.update()
+        return True
 
 
 class Hotkeys(threading.Thread):

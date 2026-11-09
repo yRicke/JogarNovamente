@@ -25,6 +25,7 @@ class FakePad:
     def __init__(self, clock):
         self.clock = clock
         self.sent_at = []
+        self.moved_at = []
         self.closed = False
 
     def tap_y(self, stop):
@@ -34,14 +35,19 @@ class FakePad:
     def close(self):
         self.closed = True
 
+    def move_sticks(self, stop, is_focused):
+        self.moved_at.append(self.clock[0])
+        return True
+
 
 class EngineTests(unittest.TestCase):
-    def exercise(self, focus=lambda now: True, simulate=False, finish=1.6, factory=None):
+    def exercise(self, focus=lambda now: True, simulate=False, finish=1.6, factory=None,
+                 move_sticks=True):
         clock = [0.0]
         stop = FakeStop(clock, finish)
         pad = FakePad(clock)
         events = []
-        run(Settings(0.5, 0.5, simulate), stop, lambda: focus(clock[0]),
+        run(Settings(0.5, 0.5, simulate, move_sticks), stop, lambda: focus(clock[0]),
             factory or (lambda: pad), lambda *event: events.append(event),
             clock=lambda: clock[0], choose_delay=lambda lo, hi: lo)
         return pad, events
@@ -110,6 +116,29 @@ class EngineTests(unittest.TestCase):
         for minimum, maximum in [(0, 3), (10, 3), (3, 3601), (float("nan"), 10), (3, float("inf"))]:
             with self.subTest(minimum=minimum, maximum=maximum), self.assertRaises(ValueError):
                 Settings(minimum, maximum)
+
+    def test_sticks_move_occasionally_without_replacing_y(self):
+        pad, events = self.exercise(finish=40.5)
+        self.assertEqual(pad.moved_at, [20.0, 40.0])
+        self.assertIn(("movements", 2), events)
+        self.assertGreater(len(pad.sent_at), 70)
+
+    def test_sticks_can_be_disabled(self):
+        pad, events = self.exercise(finish=45, move_sticks=False)
+        self.assertEqual(pad.moved_at, [])
+        self.assertFalse(any(kind == "movements" for kind, _ in events))
+
+    def test_sticks_wait_again_after_losing_focus(self):
+        pad, _ = self.exercise(focus=lambda now: not 10 <= now < 11, finish=31.5)
+        self.assertEqual(pad.moved_at, [31.0])
+
+    def test_sticks_are_simulated_without_creating_pad(self):
+        def forbidden():
+            self.fail("Simulação tentou criar um controle")
+
+        pad, events = self.exercise(simulate=True, finish=20.5, factory=forbidden)
+        self.assertEqual(pad.moved_at, [])
+        self.assertIn(("movements", 1), events)
 
 
 if __name__ == "__main__":

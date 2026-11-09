@@ -5,6 +5,12 @@ Aplicativo Windows em **Python + Tkinter**, com um controle Xbox 360 virtual via
 primeiro plano, aperta e solta **Y** a cada intervalo aleatório de **3 a 10 segundos**.
 O primeiro comando também aguarda um intervalo completo. Não é a tecla Y do teclado.
 
+Com **Mover os dois analógicos ocasionalmente** marcado (padrão), também movimenta
+os dois analógicos a cada **20 a 45 segundos**, em direções sorteadas separadamente.
+Cada movimento dura **0,25 a 0,6 segundo**, com intensidade de 75%, e depois os dois
+voltam ao centro. Perder o foco do jogo ou parar interrompe o movimento.
+Para desativar essa função, desligue o envio e desmarque a opção.
+
 Python mantém a interface simples e exige apenas uma dependência externa.
 XInput é uma API de leitura de controles; o dispositivo virtual fornece os comandos
 que o jogo lê como um controle Xbox.
@@ -25,7 +31,8 @@ que o jogo lê como um controle Xbox.
    se outro aplicativo já tiver registrado essas teclas; nesse caso a interface avisa.
 6. **Desligar**, **F9** e fechar a janela interrompem a espera e liberam o controle.
 
-O aplicativo sempre abre desligado. Alterar os intervalos requer desligar primeiro.
+O aplicativo abre desligado por padrão. Para iniciar ligado, execute
+`iniciar.bat --ligar` (ou `python app.py --ligar`). Alterar os intervalos requer desligar primeiro.
 Ao sair do jogo, o envio pausa; ao retornar, começa uma nova espera completa.
 A verificação usa o executável do Fortnite em foco. Se o Windows impedir essa
 verificação, o aplicativo permanece pausado.
@@ -47,8 +54,8 @@ python -m unittest discover -s tests -v
 - Não detecta o fim da partida: **Y também será enviado enquanto você joga**.
   Confirme se Y realmente executa “Jogar novamente” no seu layout. As imagens
   enviadas mostram o botão na tela, mas não confirmam o atalho de controle.
-- Não inclui X ou movimentos dos analógicos; esses comandos podem executar
-  ações indesejadas e não garantem proteção contra punições.
+- Os movimentos dos analógicos podem mover o personagem e a câmera ou alterar
+  a seleção dos menus. Não inclui X. Essas ações não garantem proteção contra punições.
 - **Não tira prints nem grava imagens**, então não há arquivos de captura a apagar.
 - Um controle físico conectado pode ocupar o primeiro slot e impedir que o jogo
   responda ao controle virtual. A aceitação pelo Fortnite precisa ser verificada
